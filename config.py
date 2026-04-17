@@ -46,3 +46,8 @@ RANDOM_FACTOR = 0.4           # Base randomness when aroma is weak
 NEIGHBOR_DIST = 60.0
 DESIRED_SEPARATION = 18.0
 
+# Dynamic Maze Settings
+DYNAMIC_WALLS = True
+WALL_CHANGE_RATE = 0.008  # Chance per frame (approx every ~2 seconds at 60fps)
+WALL_CHANGE_COUNT = 1    # How many walls to toggle at once
+

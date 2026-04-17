@@ -61,6 +61,17 @@ class Simulation:
         self.metrics = {"avg_dist_to_food": 0.0, "time_elapsed": 0.0, "aroma_strength": "Low", "cohesion": 0.0}
 
     def update(self):
+        # Dynamic Wall Changing
+        if DYNAMIC_WALLS and random.random() < WALL_CHANGE_RATE:
+            for _ in range(WALL_CHANGE_COUNT):
+                rx = random.randint(0, GRID_SIZE - 1)
+                ry = random.randint(0, GRID_SIZE - 1)
+                rd = random.randint(0, 3)
+                self.maze.toggle_wall(rx, ry, rd)
+            
+            # Re-calculate aroma field for the new maze layout
+            self.flow_field, self.dist_field = self.pf.generate_aroma_field(self.target_pos)
+
         # Update agents
         for agent in self.agents:
             agent.behaviors(self.agents, self.flow_field, self.dist_field, self.maze)
@@ -68,6 +79,7 @@ class Simulation:
         
         # Metrics
         self.metrics["time_elapsed"] = round(time.time() - self.start_time, 1)
+        self.metrics["dynamic_reef"] = "Active" if DYNAMIC_WALLS else "Static"
         
         total_dist = 0
         total_vel = pygame.Vector2(0, 0)
@@ -88,6 +100,7 @@ class Simulation:
         center /= len(self.agents)
         avg_coh_dist = sum(a.pos.distance_to(center) for a in self.agents) / len(self.agents)
         self.metrics["cohesion"] = round(max(0, 100 - avg_coh_dist), 1)
+
 
     def draw(self):
         self.screen.fill(BG_COLOR)
