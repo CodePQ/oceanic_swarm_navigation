@@ -1,6 +1,7 @@
 import random
 import pygame
-from config import GRID_SIZE
+from config import *
+
 
 class Maze:
     def __init__(self, size):

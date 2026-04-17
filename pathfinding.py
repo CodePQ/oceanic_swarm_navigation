@@ -1,6 +1,6 @@
 import heapq
 import pygame
-from config import GRID_SIZE
+from config import *
 
 class Pathfinding:
     def __init__(self, maze):

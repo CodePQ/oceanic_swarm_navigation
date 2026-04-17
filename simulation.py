@@ -7,7 +7,6 @@ from maze_gen import Maze
 from pathfinding import Pathfinding
 from boids import Agent
 import math
-
 class Food:
     def __init__(self, x, y):
         self.grid_pos = (x, y)
@@ -38,6 +37,9 @@ class Simulation:
         self.clock = pygame.time.Clock()
         self.font = pygame.font.SysFont("Outfit", 20)
         self.large_font = pygame.font.SysFont("Outfit", 30, bold=True)
+        
+        self.offset_x = 380  # Shifted right to avoid HUD overlap
+        self.offset_y = (HEIGHT - GRID_SIZE * CELL_SIZE) // 2
         
         self.reset()
 
@@ -105,8 +107,7 @@ class Simulation:
     def draw(self):
         self.screen.fill(BG_COLOR)
         
-        offset_x = (WIDTH - GRID_SIZE * CELL_SIZE) // 2
-        offset_y = (HEIGHT - GRID_SIZE * CELL_SIZE) // 2
+        offset_x, offset_y = self.offset_x, self.offset_y
         
         # Draw background water gradient/shimmer (optional but premium)
         
@@ -180,8 +181,7 @@ class Simulation:
             y_off += 25
 
     def handle_click(self, pos, button):
-        offset_x = (WIDTH - GRID_SIZE * CELL_SIZE) // 2
-        offset_y = (HEIGHT - GRID_SIZE * CELL_SIZE) // 2
+        offset_x, offset_y = self.offset_x, self.offset_y
         
         grid_x = (pos[0] - offset_x) // CELL_SIZE
         grid_y = (pos[1] - offset_y) // CELL_SIZE
