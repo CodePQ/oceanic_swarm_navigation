@@ -27,14 +27,14 @@ TEXT_COLOR = (200, 230, 255)
 
 # Boids Parameters
 AGENT_COUNT = 60
-AGENT_RADIUS = 4
+AGENT_RADIUS = 2.5
 MAX_SPEED = 3.5
 MAX_FORCE = 0.18
 
 # Weights for steering behaviors
-SEP_WEIGHT = 2.0    # Separation (Keep fish apart)
-ALI_WEIGHT = 1.2    # Alignment (Swim together)
-COH_WEIGHT = 1.1    # Cohesion (Stay in school)
+SEP_WEIGHT = 1.5    # Separation (Keep fish apart)
+ALI_WEIGHT = 2.0    # Alignment (Swim together)
+COH_WEIGHT = 1.8    # Cohesion (Stay in school)
 AROMA_WEIGHT = 2.5  # Aroma Following (Goal Seeking)
 AVOID_WEIGHT = 6.0  # Obstacle Avoidance
 
@@ -44,12 +44,10 @@ RANDOM_FACTOR = 0.4           # Base randomness when aroma is weak
 
 # Neighborhood radius for swarm behavior
 NEIGHBOR_DIST = 60.0
-DESIRED_SEPARATION = 18.0
+DESIRED_SEPARATION = 12.0
 
 # Dynamic Maze Settings
 DYNAMIC_WALLS = True
-WALL_CHANGE_RATE = 0.015  # Increased slightly for more action
-WALL_CHANGE_COUNT = 1
-DYNAMIC_WALL_PROBABILITY = 0.12 # Percentage of walls that are "shifters"
-DYNAMIC_WALL_COLOR = (255, 110, 80) # Glowing Coral/Orange
+WALL_CHANGE_RATE = 0.008  # Chance per frame (approx every ~2 seconds at 60fps)
+WALL_CHANGE_COUNT = 1    # How many walls to toggle at once
 

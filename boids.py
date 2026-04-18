@@ -14,6 +14,8 @@ class Agent:
         self.max_speed = MAX_SPEED * random.uniform(0.8, 1.2)
         self.max_force = MAX_FORCE * random.uniform(0.8, 1.2)
         self.neighbor_dist = NEIGHBOR_DIST * random.uniform(0.8, 1.2)
+        self.radius = AGENT_RADIUS * random.uniform(0.7, 1.3)
+        self.wiggle_phase = random.uniform(0, math.pi * 2)
         
         # Performance metrics
         self.path_distance = 0
@@ -22,20 +24,67 @@ class Agent:
     def apply_force(self, force):
         self.acc += force
 
-    def update(self):
+    def update(self, maze):
         prev_pos = pygame.Vector2(self.pos)
         self.vel += self.acc
         if self.vel.length() > self.max_speed:
             self.vel.scale_to_length(self.max_speed)
-        self.pos += self.vel
+        
+        next_pos = self.pos + self.vel
+        
+        # Hard collision check against current cell walls to prevent phasing
+        grid_x = int(self.pos.x // CELL_SIZE)
+        grid_y = int(self.pos.y // CELL_SIZE)
+        
+        if 0 <= grid_x < GRID_SIZE and 0 <= grid_y < GRID_SIZE:
+            walls = maze.grid[grid_y][grid_x]
+            cell_left = grid_x * CELL_SIZE
+            cell_top = grid_y * CELL_SIZE
+            cell_right = (grid_x + 1) * CELL_SIZE
+            cell_bottom = (grid_y + 1) * CELL_SIZE
+            
+            radius = AGENT_RADIUS
+            margin = 1  # small bounce margin
+            
+            if walls[0] and next_pos.y - radius < cell_top:
+                next_pos.y = cell_top + radius + margin
+                self.vel.y *= -0.5
+            if walls[2] and next_pos.y + radius > cell_bottom:
+                next_pos.y = cell_bottom - radius - margin
+                self.vel.y *= -0.5
+            if walls[3] and next_pos.x - radius < cell_left:
+                next_pos.x = cell_left + radius + margin
+                self.vel.x *= -0.5
+            if walls[1] and next_pos.x + radius > cell_right:
+                next_pos.x = cell_right - radius - margin
+                self.vel.x *= -0.5
+
+        # Absolute fail-safe boundary clamp
+        max_coord = GRID_SIZE * CELL_SIZE - radius
+        if next_pos.x < radius:
+            next_pos.x = radius
+            self.vel.x *= -0.5
+        elif next_pos.x > max_coord:
+            next_pos.x = max_coord
+            self.vel.x *= -0.5
+            
+        if next_pos.y < radius:
+            next_pos.y = radius
+            self.vel.y *= -0.5
+        elif next_pos.y > max_coord:
+            next_pos.y = max_coord
+            self.vel.y *= -0.5
+
+        self.pos = next_pos
         self.acc *= 0
+        
+        speed = self.vel.length()
+        self.wiggle_phase += speed * 0.15
         
         self.path_distance += self.pos.distance_to(prev_pos)
 
     def behaviors(self, agents, flow_field, dist_field, maze):
-        sep = self.separate(agents)
-        ali = self.align(agents)
-        coh = self.cohesion(agents)
+        sep, ali, coh = self.flock(agents)
         
         # Aroma-based Following
         grid_x = int(self.pos.x // CELL_SIZE)
@@ -89,54 +138,59 @@ class Agent:
             return steer
         return pygame.Vector2(0, 0)
 
-    def separate(self, agents):
-        steer = pygame.Vector2(0, 0)
-        count = 0
+    def flock(self, agents):
+        sep_steer = pygame.Vector2(0, 0)
+        ali_steer = pygame.Vector2(0, 0)
+        coh_steer = pygame.Vector2(0, 0)
+        
+        sep_count = 0
+        ali_coh_count = 0
+        
         for other in agents:
+            if other is self:
+                continue
+                
             d = self.pos.distance_to(other.pos)
-            if 0 < d < DESIRED_SEPARATION:
-                diff = self.pos - other.pos
-                diff = diff.normalize() / d
-                steer += diff
-                count += 1
-        if count > 0:
-            steer /= count
-        if steer.length() > 0:
-            steer = steer.normalize() * self.max_speed
-            steer -= self.vel
-            if steer.length() > self.max_force:
-                steer.scale_to_length(self.max_force)
-        return steer
+            
+            if 0 < d < self.neighbor_dist:
+                # Alignment
+                ali_steer += other.vel
+                # Cohesion
+                coh_steer += other.pos
+                ali_coh_count += 1
+                
+                # Separation
+                if d < DESIRED_SEPARATION:
+                    diff = self.pos - other.pos
+                    if d > 0.001:  # Safeguard against NaN/Infinity from near-zero distance
+                        diff = diff.normalize() / d
+                        sep_steer += diff
+                        sep_count += 1
 
-    def align(self, agents):
-        sum_vel = pygame.Vector2(0, 0)
-        count = 0
-        for other in agents:
-            d = self.pos.distance_to(other.pos)
-            if 0 < d < NEIGHBOR_DIST:
-                sum_vel += other.vel
-                count += 1
-        if count > 0:
-            sum_vel /= count
-            sum_vel = sum_vel.normalize() * self.max_speed
-            steer = sum_vel - self.vel
-            if steer.length() > self.max_force:
-                steer.scale_to_length(self.max_force)
-            return steer
-        return pygame.Vector2(0, 0)
-
-    def cohesion(self, agents):
-        sum_pos = pygame.Vector2(0, 0)
-        count = 0
-        for other in agents:
-            d = self.pos.distance_to(other.pos)
-            if 0 < d < NEIGHBOR_DIST:
-                sum_pos += other.pos
-                count += 1
-        if count > 0:
-            sum_pos /= count
-            return self.seek(sum_pos)
-        return pygame.Vector2(0, 0)
+        # Finalize separation
+        if sep_count > 0:
+            sep_steer /= sep_count
+            if sep_steer.length() > 0:
+                sep_steer = sep_steer.normalize() * self.max_speed
+                sep_steer -= self.vel
+                if sep_steer.length() > self.max_force:
+                    sep_steer.scale_to_length(self.max_force)
+                    
+        # Finalize alignment and cohesion
+        if ali_coh_count > 0:
+            # Alignment
+            ali_steer /= ali_coh_count
+            if ali_steer.length() > 0:
+                ali_steer = ali_steer.normalize() * self.max_speed
+                ali_steer -= self.vel
+                if ali_steer.length() > self.max_force:
+                    ali_steer.scale_to_length(self.max_force)
+                
+            # Cohesion
+            coh_steer /= ali_coh_count
+            coh_steer = self.seek(coh_steer)
+            
+        return sep_steer, ali_steer, coh_steer
 
     def avoid_walls(self, maze):
         steer = pygame.Vector2(0, 0)
@@ -175,32 +229,48 @@ class Agent:
         else:
             angle = 0
             
-        # Teardrop body
+        # Teardrop body (sleeker)
         body_points = [
-            self.pos + pygame.Vector2(math.cos(angle), math.sin(angle)) * AGENT_RADIUS * 2.5,  # Nose
-            self.pos + pygame.Vector2(math.cos(angle + 2.2), math.sin(angle + 2.2)) * AGENT_RADIUS, # Middle top
-            self.pos + pygame.Vector2(math.cos(angle + math.pi), math.sin(angle + math.pi)) * AGENT_RADIUS * 0.5, # Tail start
-            self.pos + pygame.Vector2(math.cos(angle - 2.2), math.sin(angle - 2.2)) * AGENT_RADIUS  # Middle bottom
+            self.pos + pygame.Vector2(math.cos(angle), math.sin(angle)) * self.radius * 3.0,  # Nose
+            self.pos + pygame.Vector2(math.cos(angle + 1.8), math.sin(angle + 1.8)) * self.radius * 1.2, # Middle top
+            self.pos + pygame.Vector2(math.cos(angle + math.pi), math.sin(angle + math.pi)) * self.radius * 0.2, # Tail start
+            self.pos + pygame.Vector2(math.cos(angle - 1.8), math.sin(angle - 1.8)) * self.radius * 1.2  # Middle bottom
         ]
         
-        # Tail (wiggles slightly)
-        wiggle = math.sin(pygame.time.get_ticks() * 0.01 + self.pos.x) * 0.5
+        # Pectoral Fins (swept back, smaller)
+        fin_angle_offset = 2.0 + math.sin(self.wiggle_phase * 0.5) * 0.15
+        left_fin = [
+            self.pos + pygame.Vector2(math.cos(angle - 1.2), math.sin(angle - 1.2)) * self.radius * 0.8,
+            self.pos + pygame.Vector2(math.cos(angle - fin_angle_offset), math.sin(angle - fin_angle_offset)) * self.radius * 1.5,
+            self.pos + pygame.Vector2(math.cos(angle - 2.5), math.sin(angle - 2.5)) * self.radius * 0.5
+        ]
+        right_fin = [
+            self.pos + pygame.Vector2(math.cos(angle + 1.2), math.sin(angle + 1.2)) * self.radius * 0.8,
+            self.pos + pygame.Vector2(math.cos(angle + fin_angle_offset), math.sin(angle + fin_angle_offset)) * self.radius * 1.5,
+            self.pos + pygame.Vector2(math.cos(angle + 2.5), math.sin(angle + 2.5)) * self.radius * 0.5
+        ]
+        
+        # Tail (wiggles dynamically based on speed)
+        wiggle = math.sin(self.wiggle_phase) * 0.4
         tail_angle = angle + math.pi + wiggle
         tail_points = [
-            self.pos + pygame.Vector2(math.cos(angle + math.pi), math.sin(angle + math.pi)) * AGENT_RADIUS * 0.5,
-            self.pos + pygame.Vector2(math.cos(tail_angle + 0.5), math.sin(tail_angle + 0.5)) * AGENT_RADIUS * 1.5,
-            self.pos + pygame.Vector2(math.cos(tail_angle - 0.5), math.sin(tail_angle - 0.5)) * AGENT_RADIUS * 1.5
+            self.pos + pygame.Vector2(math.cos(angle + math.pi), math.sin(angle + math.pi)) * self.radius * 0.2,
+            self.pos + pygame.Vector2(math.cos(tail_angle + 0.4), math.sin(tail_angle + 0.4)) * self.radius * 2.0,
+            self.pos + pygame.Vector2(math.cos(tail_angle - 0.4), math.sin(tail_angle - 0.4)) * self.radius * 2.0
         ]
         
+        # Draw fins underneath body
+        pygame.draw.polygon(screen, self.color, left_fin)
+        pygame.draw.polygon(screen, self.color, right_fin)
         pygame.draw.polygon(screen, self.color, body_points)
         pygame.draw.polygon(screen, self.color, tail_points)
         
         # Eye
-        eye_pos = self.pos + pygame.Vector2(math.cos(angle + 0.4), math.sin(angle + 0.4)) * AGENT_RADIUS * 1.5
-        pygame.draw.circle(screen, (255, 255, 255), (int(eye_pos.x), int(eye_pos.y)), 1)
+        eye_pos = self.pos + pygame.Vector2(math.cos(angle + 0.4), math.sin(angle + 0.4)) * self.radius * 1.5
+        pygame.draw.circle(screen, (255, 255, 255), (int(eye_pos.x), int(eye_pos.y)), max(1, int(self.radius * 0.3)))
         
         # Glow
-        surf = pygame.Surface((AGENT_RADIUS*8, AGENT_RADIUS*8), pygame.SRCALPHA)
-        pygame.draw.circle(surf, (*self.color, 40), (AGENT_RADIUS*4, AGENT_RADIUS*4), AGENT_RADIUS*4)
-        screen.blit(surf, (self.pos.x - AGENT_RADIUS*4, self.pos.y - AGENT_RADIUS*4))
+        surf = pygame.Surface((self.radius*8, self.radius*8), pygame.SRCALPHA)
+        pygame.draw.circle(surf, (*self.color, 40), (self.radius*4, self.radius*4), self.radius*4)
+        screen.blit(surf, (self.pos.x - self.radius*4, self.pos.y - self.radius*4))
 
