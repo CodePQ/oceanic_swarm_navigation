@@ -48,6 +48,8 @@ DESIRED_SEPARATION = 18.0
 
 # Dynamic Maze Settings
 DYNAMIC_WALLS = True
-WALL_CHANGE_RATE = 0.008  # Chance per frame (approx every ~2 seconds at 60fps)
-WALL_CHANGE_COUNT = 1    # How many walls to toggle at once
+WALL_CHANGE_RATE = 0.015  # Increased slightly for more action
+WALL_CHANGE_COUNT = 1
+DYNAMIC_WALL_PROBABILITY = 0.12 # Percentage of walls that are "shifters"
+DYNAMIC_WALL_COLOR = (255, 110, 80) # Glowing Coral/Orange
 

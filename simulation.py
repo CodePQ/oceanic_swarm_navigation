@@ -65,14 +65,14 @@ class Simulation:
     def update(self):
         # Dynamic Wall Changing
         if DYNAMIC_WALLS and random.random() < WALL_CHANGE_RATE:
-            for _ in range(WALL_CHANGE_COUNT):
-                rx = random.randint(0, GRID_SIZE - 1)
-                ry = random.randint(0, GRID_SIZE - 1)
-                rd = random.randint(0, 3)
-                self.maze.toggle_wall(rx, ry, rd)
-            
-            # Re-calculate aroma field for the new maze layout
-            self.flow_field, self.dist_field = self.pf.generate_aroma_field(self.target_pos)
+            if self.maze.dynamic_walls:
+                for _ in range(WALL_CHANGE_COUNT):
+                    # Pick a random dynamic wall
+                    rx, ry, rd = random.choice(list(self.maze.dynamic_walls))
+                    self.maze.toggle_wall(rx, ry, rd)
+                
+                # Re-calculate aroma field for the new maze layout
+                self.flow_field, self.dist_field = self.pf.generate_aroma_field(self.target_pos)
 
         # Update agents
         for agent in self.agents:
@@ -127,16 +127,30 @@ class Simulation:
                         self.screen.blit(s, (offset_x + x * CELL_SIZE, offset_y + y * CELL_SIZE))
 
         # Draw Maze Walls
+        pulse = (math.sin(time.time() * 4) + 1) / 2 # 0 to 1
         for y in range(GRID_SIZE):
             for x in range(GRID_SIZE):
                 walls = self.maze.grid[y][x]
                 x1, y1 = offset_x + x * CELL_SIZE, offset_y + y * CELL_SIZE
                 x2, y2 = x1 + CELL_SIZE, y1 + CELL_SIZE
                 
-                if walls[0]: pygame.draw.line(self.screen, WALL_COLOR, (x1, y1), (x2, y1), WALL_THICKNESS) # Top
-                if walls[1]: pygame.draw.line(self.screen, WALL_COLOR, (x2, y1), (x2, y2), WALL_THICKNESS) # Right
-                if walls[2]: pygame.draw.line(self.screen, WALL_COLOR, (x1, y2), (x2, y2), WALL_THICKNESS) # Bottom
-                if walls[3]: pygame.draw.line(self.screen, WALL_COLOR, (x1, y1), (x1, y2), WALL_THICKNESS) # Left
+                for d in range(4):
+                    if walls[d]:
+                        color = WALL_COLOR
+                        thickness = WALL_THICKNESS
+                        
+                        if (x, y, d) in self.maze.dynamic_walls:
+                            # Pulsing color for dynamic walls
+                            r = int(WALL_COLOR[0] + (DYNAMIC_WALL_COLOR[0] - WALL_COLOR[0]) * pulse)
+                            g = int(WALL_COLOR[1] + (DYNAMIC_WALL_COLOR[1] - WALL_COLOR[1]) * pulse)
+                            b = int(WALL_COLOR[2] + (DYNAMIC_WALL_COLOR[2] - WALL_COLOR[2]) * pulse)
+                            color = (r, g, b)
+                            thickness = WALL_THICKNESS + 1
+
+                        if d == 0: pygame.draw.line(self.screen, color, (x1, y1), (x2, y1), thickness)
+                        if d == 1: pygame.draw.line(self.screen, color, (x2, y1), (x2, y2), thickness)
+                        if d == 2: pygame.draw.line(self.screen, color, (x1, y2), (x2, y2), thickness)
+                        if d == 3: pygame.draw.line(self.screen, color, (x1, y1), (x1, y2), thickness)
 
 
         # Draw Food
@@ -188,7 +202,7 @@ class Simulation:
         
         if 0 <= grid_x < GRID_SIZE and 0 <= grid_y < GRID_SIZE:
             if button == 1: # Toggle wall logic
-                self.maze.grid[grid_y][grid_x][random.randint(0,3)] = not self.maze.grid[grid_y][grid_x][random.randint(0,3)]
+                self.maze.toggle_wall(grid_x, grid_y, random.randint(0, 3))
                 # Re-calculate aroma
                 self.flow_field, self.dist_field = self.pf.generate_aroma_field(self.target_pos)
             elif button == 3: # Move food

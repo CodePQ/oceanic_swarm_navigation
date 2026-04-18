@@ -9,7 +9,9 @@ class Maze:
         # Grid of cells. Each cell has 4 walls: [Top, Right, Bottom, Left]
         # True means wall exists, False means path
         self.grid = [[[True, True, True, True] for _ in range(size)] for _ in range(size)]
+        self.dynamic_walls = set() # Set of (x, y, direction) tuples
         self.generate_prim()
+        self.identify_dynamic_walls()
 
     def generate_prim(self):
         """Generates a perfect maze using Prim's algorithm."""
@@ -40,6 +42,23 @@ class Maze:
             nx, ny = x + dx, y + dy
             if 0 <= nx < self.size and 0 <= ny < self.size and (nx, ny) not in visited:
                 walls.append((x, y, nx, ny, d))
+
+    def identify_dynamic_walls(self):
+        """Randomly designates a percentage of walls as 'dynamic'."""
+        self.dynamic_walls.clear()
+        directions = [(0, -1), (1, 0), (0, 1), (-1, 0)]
+        for y in range(self.size):
+            for x in range(self.size):
+                for d in range(4):
+                    if random.random() < DYNAMIC_WALL_PROBABILITY:
+                        self.dynamic_walls.add((x, y, d))
+                        
+                        # Add mirror side
+                        dx, dy = directions[d]
+                        nx, ny = x + dx, y + dy
+                        if 0 <= nx < self.size and 0 <= ny < self.size:
+                            opposite = (d + 2) % 4
+                            self.dynamic_walls.add((nx, ny, opposite))
 
     def toggle_wall(self, x, y, direction):
         """Opens or closes a wall at (x, y) in a specific direction."""
