@@ -1,6 +1,7 @@
 import random
 import pygame
-from config import GRID_SIZE
+from config import *
+
 
 class Maze:
     def __init__(self, size):
@@ -88,3 +89,61 @@ class Maze:
         if x > 0 and not self.grid[y][x][3]:
             neighbors.append((x - 1, y))
         return neighbors
+
+    def find_path(self, start, goal):
+        """Simple BFS to find a path between two cells in the current maze."""
+        queue = [(start, [start])]
+        visited = {start}
+        while queue:
+            (x, y), path = queue.pop(0)
+            if (x, y) == goal:
+                return path
+            for nx, nx_y in self.get_neighbors(x, y):
+                if (nx, nx_y) not in visited:
+                    visited.add((nx, nx_y))
+                    queue.append(((nx, nx_y), path + [(nx, nx_y)]))
+        return None
+
+    def dynamic_swap(self):
+        """Swaps one existing wall with one existing path to maintain a perfect maze."""
+        # 1. Find all inner walls that can be opened
+        inner_walls = []
+        for y in range(self.size):
+            for x in range(self.size):
+                # Only check Right (1) and Bottom (2) to avoid duplicates
+                if x < self.size - 1 and self.grid[y][x][1]:
+                    inner_walls.append((x, y, 1)) # x, y, direction
+                if y < self.size - 1 and self.grid[y][x][2]:
+                    inner_walls.append((x, y, 2))
+                    
+        if not inner_walls:
+            return
+
+        # 2. Pick a wall to open
+        wx, wy, wd = random.choice(inner_walls)
+        # Neighbor cell
+        nx, ny = (wx + 1, wy) if wd == 1 else (wx, wy + 1)
+        
+        # 3. Find the existing path between (wx, wy) and (nx, ny)
+        # This path + the new opening will form a cycle
+        path = self.find_path((wx, wy), (nx, ny))
+        if not path or len(path) < 2:
+            return
+            
+        # 4. Pick a random edge on this path to CLOSE
+        # The path has len(path) cells, so len(path)-1 edges
+        p_idx = random.randint(0, len(path) - 2)
+        c1 = path[p_idx]
+        c2 = path[p_idx+1]
+        
+        # Determine the direction from c1 to c2
+        if c2[0] > c1[0]: cd = 1 # Right
+        elif c2[0] < c1[0]: cd = 3 # Left
+        elif c2[1] > c1[1]: cd = 2 # Bottom
+        else: cd = 0 # Top
+        
+        # 5. Perform the swap
+        # Open the wall
+        self.toggle_wall(wx, wy, wd)
+        # Close the path
+        self.toggle_wall(c1[0], c1[1], cd)

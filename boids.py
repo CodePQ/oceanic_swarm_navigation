@@ -32,7 +32,11 @@ class Agent:
         
         self.path_distance += self.pos.distance_to(prev_pos)
 
-    def behaviors(self, agents, flow_field, dist_field, maze):
+    def behaviors(self, agents, flow_field, dist_field, maze, weights):
+        sep_w = weights.get('sep', SEP_WEIGHT)
+        ali_w = weights.get('ali', ALI_WEIGHT)
+        coh_w = weights.get('coh', COH_WEIGHT)
+
         sep = self.separate(agents)
         ali = self.align(agents)
         coh = self.cohesion(agents)
@@ -46,24 +50,49 @@ class Agent:
         
         if 0 <= grid_x < len(flow_field[0]) and 0 <= grid_y < len(flow_field):
             dist = dist_field[grid_y][grid_x]
+            
+            # Probabilistic Choice among neighbors
+            neighbors = maze.get_neighbors(grid_x, grid_y)
+            target_dir = pygame.Vector2(0, 0)
+            
+            if neighbors:
+                # Calculate weights based on aroma (Boltzmann-like distribution)
+                # Lower distance = Higher weight
+                # Temperature (2.0) controls randomness: lower = more deterministic
+                neighbor_weights = []
+                for nx, ny in neighbors:
+                    d = dist_field[ny][nx]
+                    if d == float('inf'):
+                        neighbor_weights.append(0.001)
+                    else:
+                        neighbor_weights.append(math.exp(-d / 2.0))
+                
+                # Pick a neighbor based on weights
+                total_w = sum(neighbor_weights)
+                if total_w > 0:
+                    probs = [w / total_w for w in neighbor_weights]
+                    target_idx = random.choices(range(len(neighbors)), weights=probs)[0]
+                    target_neighbor = neighbors[target_idx]
+                    target_dir = pygame.Vector2(target_neighbor[0] - grid_x, target_neighbor[1] - grid_y)
+            
+            if target_dir.length() == 0:
+                target_dir = flow_field[grid_y][grid_x]
+            else:
+                target_dir = target_dir.normalize()
+
             # Aroma strength increases as distance decreases
-            # Normalize distance: 0 (at target) to 1 (far away)
-            max_dist = GRID_SIZE * 1.414 # Diagonal
+            max_dist = GRID_SIZE * 1.414 
             normalized_dist = min(dist / max_dist, 1.0)
             
-            # Weighted probability: more directed as you get closer
             aroma_weight = AROMA_WEIGHT * (1.0 - normalized_dist * 0.7)
             noise_weight = RANDOM_FACTOR * normalized_dist * 2.0
             
-            # Flow field direction
-            target_dir = flow_field[grid_y][grid_x]
             if target_dir.length() > 0:
                 desired = target_dir * self.max_speed
                 aroma_steer = (desired - self.vel)
                 if aroma_steer.length() > self.max_force:
                     aroma_steer.scale_to_length(self.max_force)
             
-            # Random noise (represents "searching" behavior)
             angle = random.uniform(0, 2 * math.pi)
             noise_steer = pygame.Vector2(math.cos(angle), math.sin(angle)) * self.max_force
             
@@ -72,9 +101,9 @@ class Agent:
 
         avoid = self.avoid_walls(maze)
 
-        self.apply_force(sep * SEP_WEIGHT)
-        self.apply_force(ali * ALI_WEIGHT)
-        self.apply_force(coh * COH_WEIGHT)
+        self.apply_force(sep * sep_w)
+        self.apply_force(ali * ali_w)
+        self.apply_force(coh * coh_w)
         self.apply_force(aroma_steer)
         self.apply_force(noise_steer)
         self.apply_force(avoid * AVOID_WEIGHT)
