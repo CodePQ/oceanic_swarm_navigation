@@ -35,12 +35,10 @@ MAX_FORCE = 0.18
 SEP_WEIGHT = 2.0    # Separation (Keep fish apart)
 ALI_WEIGHT = 1.2    # Alignment (Swim together)
 COH_WEIGHT = 1.1    # Cohesion (Stay in school)
-AROMA_WEIGHT = 2.5  # Aroma Following (Goal Seeking)
+AROMA_WEIGHT = 2.5  # Aroma / Probability Settings
+AROMA_REACH = GRID_SIZE * 1.5 # Increased reach
+RANDOM_FACTOR = 0.3           # Lowered base randomness to favor scent
 AVOID_WEIGHT = 6.0  # Obstacle Avoidance
-
-# Aroma / Probability Settings
-AROMA_REACH = GRID_SIZE * 0.8 # Distance at which aroma starts being strong
-RANDOM_FACTOR = 0.4           # Base randomness when aroma is weak
 
 # Neighborhood radius for swarm behavior
 NEIGHBOR_DIST = 60.0
@@ -50,4 +48,9 @@ DESIRED_SEPARATION = 18.0
 DYNAMIC_WALLS = True
 WALL_CHANGE_RATE = 0.008  # Chance per frame (approx every ~2 seconds at 60fps)
 WALL_CHANGE_COUNT = 1    # How many walls to toggle at once
+
+# Food Depletion Settings
+FOOD_MAX_AMOUNT = 100.0
+FOOD_CONSUMPTION_RATE = 0.05  # Amount depleted per agent per frame
+FOOD_DETECTION_RADIUS = 25.0 # Distance for consumption
 

@@ -10,26 +10,27 @@ This project explores collective behavior in complex environments. A school of f
 
 ### Key Concepts
 - **Boids (Swarm Intelligence):** Separation, Alignment, and Cohesion ensure the fish move as a unified school.
-- **Aroma-Based Pathfinding:** A hybrid A* and Flow Field system guides agents through the topological complexity of the maze.
-- **Dynamic Reef:** The environment can be modified in real-time by the user or by automated stochastic events.
+- **Probabilistic Aroma Pathfinding:** Instead of simple A*, agents use a **Boltzmann-weighted probability** system to sense scents (BFS distances) and choose their next move, creating natural, lifelike navigation.
+- **Perfect Dynamic Reef:** A shifting maze that maintains 100% connectivity and zero loops at all times using a coordinated wall-swapping algorithm.
+- **Ecological Integration:** Food deposits deplete as they are consumed and relocate, driving the swarm to explore new corners of the reef.
 
 ---
 
 ## 🚀 Features
 
 ### 🐟 Biomimetic Agent Behavior
-- **Individual Traits:** Every fish has unique mass, speed, and sensing radii for organic variety.
-- **Steering Behaviors:** Precise obstacle avoidance ensures fish don't get stuck on reef walls.
-- **Bioluminescent Visuals:** Fish glow and leave faint shimmering trails as they navigate.
+- **Stochastic Decision Making:** Fish don't take "perfect" paths; they occasionally explore less-optimal corridors based on weighted probability, allowing the school to "search" by smell.
+- **Interactive Tuning:** Real-time sliders allow you to adjust swarm physics (Separation, Alignment, Cohesion) on the fly to see how it affects collective navigation.
+- **Bioluminescent Visuals:** Fish glow and leave shimmering trails, while the food source pulses and shrinks as it is consumed.
 
 ### 🍱 Dynamic Navigation System
-- **Aroma Field:** A real-time recalculated distance gradient that "scents" the water, guiding the school to food.
-- **Flow Fields:** Efficient vector-based guidance that allows 100+ agents to adapt to new paths instantly.
-- **User Interaction:** Displace coral (toggle walls) or drop food anywhere to watch the swarm instantly reroute.
+- **Aroma Field:** An extended BFS-based distance gradient that "scents" the water, guiding the school to food even from across the map.
+- **Perfect-Preserving Updates:** When the reef shifts, walls are opened and closed in a coordinated "swap" to ensure the maze properties remain intact and no fish are ever trapped.
+- **Relocation Ecology:** Once a food source is exhausted, the aroma field instantly recalculates for a new deposit, triggering a school-wide migration.
 
 ### ⚓ Premium Visualization
-- **Deep-Sea Aesthetic:** A curated HSL-tailored color palette with deep ocean blues and electric seafoam.
-- **Real-Time Metrics HUD:** Track school cohesion, average distance to food, and "Aroma Strength" in real-time.
+- **Deep-Sea Aesthetic:** A curated palette with deep ocean blues and electric seafoam fish.
+- **Interactive HUD:** Sidebar metrics track school cohesion, average distance to food, and current food supply (%).
 
 ---
 
@@ -63,7 +64,8 @@ This project explores collective behavior in complex environments. A school of f
 | Interaction | Action |
 | :--- | :--- |
 | **`R` Key** | Generate a New Reef (Reset Maze) |
-| **Left Click** | **Displace Coral:** Toggle a reef wall at the cursor position |
+| **Mouse Sliders** | **Tune Physics:** Adjust Separation, Alignment, and Cohesion in real-time |
+| **Left Click** | **Displace Coral:** Toggle a reef wall (coordinated swap) |
 | **Right Click** | **Drop Food:** Move the food source to the cursor position |
 | **Close Window** | Exit Simulation |
 
